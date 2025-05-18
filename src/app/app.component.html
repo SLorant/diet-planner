@@ -22,6 +22,34 @@
 
   .sidenav {
     width: 250px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidenav mat-nav-list {
+    flex: 1;
+  }
+
+  .sidenav-footer {
+    margin-top: auto;
+  }
+
+  .sidenav-footer mat-divider {
+    margin: 8px 0;
+  }
+
+  .sidenav-footer mat-icon {
+    color: rgba(0, 0, 0, 0.87);
+  }
+
+  .sidenav-footer button {
+    width: 100%;
+    text-align: left;
+    border: none;
+    cursor: pointer;
+  }
+  .sidenav-footer button:hover {
+    background-color: rgba(0, 0, 0, 0.04);
   }
 
   mat-sidenav-content {
@@ -59,19 +87,49 @@
     class="sidenav"
   >
     <mat-nav-list>
+      <!-- Always visible -->
       <a mat-list-item routerLink="/dashboard" routerLinkActive="active">
-        <mat-icon matListItemIcon>dashboard</mat-icon>
-        <span matListItemTitle>Dashboard</span>
+        <mat-icon matListItemIcon>home</mat-icon>
+        <span matListItemTitle>Home</span>
       </a>
-      <a mat-list-item routerLink="/calorie-tracker" routerLinkActive="active">
-        <mat-icon matListItemIcon>fitness_center</mat-icon>
-        <span matListItemTitle>Calorie Tracker</span>
-      </a>
-      <a mat-list-item routerLink="/meal-planner" routerLinkActive="active">
-        <mat-icon matListItemIcon>restaurant</mat-icon>
-        <span matListItemTitle>Meal Planner</span>
-      </a>
+
+      <!-- Only visible when not authenticated -->
+      <ng-container *ngIf="!authService.isAuthenticated()">
+        <a mat-list-item routerLink="/login" routerLinkActive="active">
+          <mat-icon matListItemIcon>login</mat-icon>
+          <span matListItemTitle>Login</span>
+        </a>
+        <a mat-list-item routerLink="/register" routerLinkActive="active">
+          <mat-icon matListItemIcon>person_add</mat-icon>
+          <span matListItemTitle>Register</span>
+        </a>
+      </ng-container>
+
+      <!-- Only visible when authenticated -->
+      <ng-container *ngIf="authService.isAuthenticated()">
+        <a
+          mat-list-item
+          routerLink="/calorie-tracker"
+          routerLinkActive="active"
+        >
+          <mat-icon matListItemIcon>fitness_center</mat-icon>
+          <span matListItemTitle>Calorie Tracker</span>
+        </a>
+        <a mat-list-item routerLink="/meal-planner" routerLinkActive="active">
+          <mat-icon matListItemIcon>restaurant</mat-icon>
+          <span matListItemTitle>Meal Planner</span>
+        </a>
+      </ng-container>
     </mat-nav-list>
+
+    <!-- Logout button at bottom when authenticated -->
+    <div class="sidenav-footer" *ngIf="authService.isAuthenticated()">
+      <mat-divider></mat-divider>
+      <button mat-list-item (click)="logout()">
+        <mat-icon matListItemIcon>logout</mat-icon>
+        <span matListItemTitle>Logout</span>
+      </button>
+    </div>
   </mat-sidenav>
 
   <mat-sidenav-content>

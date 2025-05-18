@@ -1,4 +1,5 @@
 export interface Meal {
+  id?: string;
   name: string;
   time: string;
   foods: string[];
@@ -13,11 +14,12 @@ interface FoodProperties {
 }
 
 export interface FoodItem extends FoodProperties {
+  id?: string;
   name: string;
 }
 
-export type ColumnDef = {
+export interface ColumnDef {
   header: string;
   field: string;
   type: 'text' | 'number' | 'date' | 'boolean' | 'button';
-};
+}

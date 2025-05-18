@@ -1,9 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { FoodItem } from '../shared/models';
 import { FoodFormComponent } from './food-form.component';
 import { FoodTableComponent } from './food-table.component';
+import { FoodService } from '../shared/food.service';
 
 @Component({
   selector: 'app-calorie-tracker',
@@ -22,13 +23,17 @@ import { FoodTableComponent } from './food-table.component';
         </mat-card-header>
         <mat-card-content>
           <app-food-form
-            (addFood)="addFoodItem($event)"
+            [editItem]="editingFoodItem"
             (validationError)="showError($event)"
+            (foodAdded)="onFoodAdded()"
+            (foodUpdated)="onFoodUpdated()"
+            (editCancelled)="onEditCancelled()"
           ></app-food-form>
 
           <app-food-table
             [foodItems]="foodItems"
             (removeFood)="removeFoodItem($event)"
+            (editFood)="startEditing($event)"
           ></app-food-table>
 
           <div class="summary">
@@ -63,19 +68,53 @@ import { FoodTableComponent } from './food-table.component';
     `,
   ],
 })
-export class CalorieTrackerComponent {
+export class CalorieTrackerComponent implements OnInit {
   foodItems: FoodItem[] = [];
+  editingFoodItem: FoodItem | null = null;
 
-  constructor(private snackBar: MatSnackBar) {}
+  constructor(
+    private snackBar: MatSnackBar,
+    private foodService: FoodService
+  ) {}
 
-  addFoodItem(food: FoodItem) {
-    this.foodItems = [...this.foodItems, food];
+  async ngOnInit() {
+    await this.loadFoodItems();
+  }
+
+  private async loadFoodItems() {
+    try {
+      this.foodItems = await this.foodService.getFoodItems();
+    } catch (error) {
+      this.showError('Failed to load food items');
+    }
+  }
+
+  async onFoodAdded() {
+    await this.loadFoodItems();
     this.showSuccess('Food item added successfully');
   }
 
-  removeFoodItem(index: number) {
-    this.foodItems = this.foodItems.filter((_, i) => i !== index);
-    this.showSuccess('Food item removed');
+  async onFoodUpdated() {
+    await this.loadFoodItems();
+    this.showSuccess('Food item updated successfully');
+  }
+
+  onEditCancelled() {
+    this.editingFoodItem = null;
+  }
+
+  startEditing(foodItem: FoodItem) {
+    this.editingFoodItem = foodItem;
+  }
+
+  async removeFoodItem(foodId: string) {
+    try {
+      await this.foodService.deleteFoodItem(foodId);
+      await this.loadFoodItems();
+      this.showSuccess('Food item removed');
+    } catch (error) {
+      this.showError('Failed to remove food item');
+    }
   }
 
   getTotalCalories(): number {

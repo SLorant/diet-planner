@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,8 +8,10 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MealCardComponent } from './meal-card.component';
 import { Meal } from '../shared/models';
+import { MealService } from '../shared/meal.service';
 
 @Component({
   selector: 'app-meal-planner',
@@ -23,6 +25,7 @@ import { Meal } from '../shared/models';
     MatFormFieldModule,
     MatSelectModule,
     MatSnackBarModule,
+    MatProgressSpinnerModule,
     FormsModule,
     MealCardComponent,
   ],
@@ -40,12 +43,13 @@ import { Meal } from '../shared/models';
                 matInput
                 [(ngModel)]="newMeal.name"
                 placeholder="Enter meal name"
+                [disabled]="isSubmitting"
               />
             </mat-form-field>
 
             <mat-form-field>
               <mat-label>Time</mat-label>
-              <mat-select [(ngModel)]="newMeal.time">
+              <mat-select [(ngModel)]="newMeal.time" [disabled]="isSubmitting">
                 <mat-option value="breakfast">Breakfast</mat-option>
                 <mat-option value="lunch">Lunch</mat-option>
                 <mat-option value="dinner">Dinner</mat-option>
@@ -60,6 +64,7 @@ import { Meal } from '../shared/models';
                 type="number"
                 [(ngModel)]="newMeal.calories"
                 placeholder="Enter calories"
+                [disabled]="isSubmitting"
               />
             </mat-form-field>
 
@@ -70,6 +75,7 @@ import { Meal } from '../shared/models';
                 [(ngModel)]="newFoodItem"
                 placeholder="Enter food item"
                 (keyup.enter)="addFoodItem()"
+                [disabled]="isSubmitting"
               />
             </mat-form-field>
 
@@ -77,12 +83,20 @@ import { Meal } from '../shared/models';
               mat-raised-button
               class="meal-planner-add-btn"
               (click)="addFoodItem()"
+              [disabled]="isSubmitting"
             >
               Add food
             </button>
 
-            <button mat-raised-button color="primary" (click)="addMeal()">
-              Add Meal
+            <button
+              mat-raised-button
+              color="primary"
+              (click)="addMeal()"
+              [disabled]="isSubmitting"
+            >
+              <mat-icon>add</mat-icon>
+              <span *ngIf="!isSubmitting">Add Meal</span>
+              <mat-spinner *ngIf="isSubmitting" diameter="20"></mat-spinner>
             </button>
           </div>
 
@@ -161,7 +175,7 @@ import { Meal } from '../shared/models';
     `,
   ],
 })
-export class MealPlannerComponent {
+export class MealPlannerComponent implements OnInit {
   meals: Meal[] = [];
   newMeal: Meal = {
     name: '',
@@ -170,8 +184,24 @@ export class MealPlannerComponent {
     calories: 0,
   };
   newFoodItem: string = '';
+  isSubmitting = false;
 
-  constructor(private snackBar: MatSnackBar) {}
+  constructor(
+    private snackBar: MatSnackBar,
+    private mealService: MealService
+  ) {}
+
+  async ngOnInit() {
+    await this.loadMeals();
+  }
+
+  private async loadMeals() {
+    try {
+      this.meals = await this.mealService.getMeals();
+    } catch (error) {
+      this.showError('Failed to load meals');
+    }
+  }
 
   addFoodItem() {
     if (this.newFoodItem.trim()) {
@@ -180,7 +210,7 @@ export class MealPlannerComponent {
     }
   }
 
-  addMeal() {
+  async addMeal() {
     if (!this.newMeal.name) {
       this.showError('Please enter a meal name');
       return;
@@ -194,17 +224,42 @@ export class MealPlannerComponent {
       return;
     }
 
-    this.meals = [...this.meals, { ...this.newMeal }];
+    try {
+      this.isSubmitting = true;
+      await this.mealService.addMeal({ ...this.newMeal });
+      await this.loadMeals();
+      this.resetForm();
+      this.showSuccess('Meal added successfully');
+    } catch (error) {
+      this.showError('Failed to add meal');
+    } finally {
+      this.isSubmitting = false;
+    }
+  }
+
+  async removeMeal(meal: Meal) {
+    if (!meal.id) {
+      this.showError('Cannot delete meal: missing ID');
+      return;
+    }
+
+    try {
+      await this.mealService.deleteMeal(meal.id);
+      await this.loadMeals();
+      this.showSuccess('Meal removed successfully');
+    } catch (error) {
+      this.showError('Failed to remove meal');
+    }
+  }
+
+  private resetForm() {
     this.newMeal = {
       name: '',
       time: '',
       foods: [],
       calories: 0,
     };
-  }
-
-  removeMeal(meal: Meal) {
-    this.meals = this.meals.filter((m) => m !== meal);
+    this.newFoodItem = '';
   }
 
   private showError(message: string) {
@@ -213,6 +268,15 @@ export class MealPlannerComponent {
       horizontalPosition: 'center',
       verticalPosition: 'top',
       panelClass: ['error-snackbar'],
+    });
+  }
+
+  private showSuccess(message: string) {
+    this.snackBar.open(message, 'Close', {
+      duration: 3000,
+      horizontalPosition: 'center',
+      verticalPosition: 'top',
+      panelClass: ['success-snackbar'],
     });
   }
 }

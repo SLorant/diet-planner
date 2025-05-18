@@ -50,8 +50,21 @@ import { ColumnDef, FoodItem } from '../shared/models';
           <th mat-header-cell *matHeaderCellDef>
             {{ columnDefs[5].header }}
           </th>
-          <td mat-cell *matCellDef="let item; let i = index">
-            <button mat-icon-button color="warn" (click)="removeFood.emit(i)">
+          <td mat-cell *matCellDef="let item">
+            <button
+              mat-icon-button
+              color="primary"
+              (click)="editFood.emit(item)"
+              class="action-button"
+            >
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button
+              mat-icon-button
+              color="warn"
+              (click)="removeFood.emit(item.id)"
+              class="action-button"
+            >
               <mat-icon>delete</mat-icon>
             </button>
           </td>
@@ -74,6 +87,10 @@ import { ColumnDef, FoodItem } from '../shared/models';
         min-width: 600px;
       }
 
+      .action-button {
+        margin: 0 4px;
+      }
+
       @media screen and (max-width: 600px) {
         .table-container {
           margin: 0 -8px;
@@ -88,7 +105,8 @@ import { ColumnDef, FoodItem } from '../shared/models';
 })
 export class FoodTableComponent {
   @Input() foodItems: FoodItem[] = [];
-  @Output() removeFood = new EventEmitter<number>();
+  @Output() removeFood = new EventEmitter<string>();
+  @Output() editFood = new EventEmitter<FoodItem>();
 
   columnDefs: ColumnDef[] = [
     { header: 'Food Item', field: 'name', type: 'text' },

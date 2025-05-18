@@ -1,20 +1,25 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
 import { FoodItem } from '../shared/models';
+import { FoodService } from '../shared/food.service';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 @Component({
   selector: 'app-food-form',
   standalone: true,
   imports: [
+    CommonModule,
     MatButtonModule,
     MatIconModule,
     MatInputModule,
     MatFormFieldModule,
     FormsModule,
+    MatProgressSpinnerModule,
   ],
   template: `
     <form class="input-form">
@@ -23,9 +28,10 @@ import { FoodItem } from '../shared/models';
           <mat-label>Food Item</mat-label>
           <input
             matInput
-            [(ngModel)]="newFoodItem.name"
+            [(ngModel)]="foodItem.name"
             name="foodName"
             placeholder="Enter food name"
+            [disabled]="isSubmitting"
           />
         </mat-form-field>
 
@@ -34,9 +40,10 @@ import { FoodItem } from '../shared/models';
           <input
             matInput
             type="number"
-            [(ngModel)]="newFoodItem.calories"
+            [(ngModel)]="foodItem.calories"
             name="calories"
             placeholder="Enter calories"
+            [disabled]="isSubmitting"
           />
         </mat-form-field>
       </div>
@@ -47,9 +54,10 @@ import { FoodItem } from '../shared/models';
           <input
             matInput
             type="number"
-            [(ngModel)]="newFoodItem.protein"
+            [(ngModel)]="foodItem.protein"
             name="protein"
             placeholder="Enter protein"
+            [disabled]="isSubmitting"
           />
         </mat-form-field>
 
@@ -58,9 +66,10 @@ import { FoodItem } from '../shared/models';
           <input
             matInput
             type="number"
-            [(ngModel)]="newFoodItem.carbs"
+            [(ngModel)]="foodItem.carbs"
             name="carbs"
             placeholder="Enter carbs"
+            [disabled]="isSubmitting"
           />
         </mat-form-field>
 
@@ -69,17 +78,36 @@ import { FoodItem } from '../shared/models';
           <input
             matInput
             type="number"
-            [(ngModel)]="newFoodItem.fat"
+            [(ngModel)]="foodItem.fat"
             name="fat"
             placeholder="Enter fat"
+            [disabled]="isSubmitting"
           />
         </mat-form-field>
       </div>
 
       <div class="form-actions">
-        <button mat-raised-button color="primary" (click)="onSubmit()">
-          <mat-icon>add</mat-icon>
-          Add Food
+        <button
+          mat-raised-button
+          color="primary"
+          (click)="onSubmit()"
+          [disabled]="isSubmitting"
+        >
+          <mat-icon>{{ isEditMode ? 'save' : 'add' }}</mat-icon>
+          <span *ngIf="!isSubmitting"
+            >{{ isEditMode ? 'Update' : 'Add' }} Food</span
+          >
+          <mat-spinner *ngIf="isSubmitting" diameter="20"></mat-spinner>
+        </button>
+        <button
+          *ngIf="isEditMode"
+          mat-raised-button
+          color="warn"
+          (click)="onCancel()"
+          [disabled]="isSubmitting"
+        >
+          <mat-icon>cancel</mat-icon>
+          <span>Cancel</span>
         </button>
       </div>
     </form>
@@ -106,7 +134,12 @@ import { FoodItem } from '../shared/models';
 
       .form-actions {
         display: flex;
+        gap: 16px;
         justify-content: flex-end;
+      }
+
+      .form-actions button {
+        min-width: 120px;
       }
 
       @media screen and (max-width: 600px) {
@@ -122,10 +155,12 @@ import { FoodItem } from '../shared/models';
   ],
 })
 export class FoodFormComponent {
-  @Output() addFood = new EventEmitter<FoodItem>();
   @Output() validationError = new EventEmitter<string>();
+  @Output() foodAdded = new EventEmitter<void>();
+  @Output() foodUpdated = new EventEmitter<void>();
+  @Output() editCancelled = new EventEmitter<void>();
 
-  newFoodItem: FoodItem = {
+  foodItem: FoodItem = {
     name: '',
     calories: 0,
     protein: 0,
@@ -133,35 +168,72 @@ export class FoodFormComponent {
     fat: 0,
   };
 
-  onSubmit() {
-    if (!this.newFoodItem.name) {
+  isSubmitting = false;
+  isEditMode = false;
+
+  constructor(private foodService: FoodService) {}
+
+  @Input() set editItem(item: FoodItem | null) {
+    if (item) {
+      this.foodItem = { ...item };
+      this.isEditMode = true;
+    } else {
+      this.resetForm();
+    }
+  }
+
+  async onSubmit() {
+    if (!this.foodItem.name) {
       this.validationError.emit('Please enter a food name');
       return;
     }
-    if (this.newFoodItem.calories <= 0) {
+    if (this.foodItem.calories <= 0) {
       this.validationError.emit('Please enter a valid calorie amount');
       return;
     }
     if (
-      this.newFoodItem.protein < 0 ||
-      this.newFoodItem.carbs < 0 ||
-      this.newFoodItem.fat < 0
+      this.foodItem.protein < 0 ||
+      this.foodItem.carbs < 0 ||
+      this.foodItem.fat < 0
     ) {
       this.validationError.emit('Nutritional values cannot be negative');
       return;
     }
 
-    this.addFood.emit({ ...this.newFoodItem });
+    try {
+      this.isSubmitting = true;
+      if (this.isEditMode) {
+        await this.foodService.updateFoodItem({ ...this.foodItem });
+        this.foodUpdated.emit();
+      } else {
+        await this.foodService.addFoodItem({ ...this.foodItem });
+        this.foodAdded.emit();
+      }
+      this.resetForm();
+    } catch (error) {
+      this.validationError.emit(
+        `Failed to ${
+          this.isEditMode ? 'update' : 'add'
+        } food item. Please try again.`
+      );
+    } finally {
+      this.isSubmitting = false;
+    }
+  }
+
+  onCancel() {
     this.resetForm();
+    this.editCancelled.emit();
   }
 
   private resetForm() {
-    this.newFoodItem = {
+    this.foodItem = {
       name: '',
       calories: 0,
       protein: 0,
       carbs: 0,
       fat: 0,
     };
+    this.isEditMode = false;
   }
 }
