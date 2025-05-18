@@ -29,7 +29,7 @@ import { AuthService } from './shared/auth.service';
   styleUrls: ['./app.component.css'],
 })
 export class AppComponent {
-  title = 'Diet Planner';
+  title = 'Diet Planner - Táplálkozás követő alkalmazás';
 
   isHandset$: Observable<boolean> = this.breakpointObserver
     .observe(Breakpoints.Handset)
